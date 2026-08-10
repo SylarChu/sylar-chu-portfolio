@@ -37,7 +37,9 @@
     const textHost = root.querySelector(".home-scroll-intro__layout");
     if (!track || !stage || !frame || !media || !textHost) return;
 
+    const startsAtTop = window.location.hash === "" || window.location.hash === "#top";
     let finished = reduceMotion;
+    let armed = reduceMotion || !startsAtTop;
     let textAdded = false;
     let raf = 0;
 
@@ -88,7 +90,7 @@
 
     const update = () => {
       raf = 0;
-      if (finished) return;
+      if (finished || !armed) return;
       const span = Math.max(1, window.innerHeight * 0.82);
       const progress = clamp(-track.getBoundingClientRect().top / span);
       render(progress);
@@ -99,7 +101,33 @@
     };
 
     measure();
-    render(reduceMotion ? 1 : 0);
+
+    if (!reduceMotion && startsAtTop) {
+      // Browsers commonly restore the previous scroll position after a reload.
+      // Keep the published homepage deterministic: every fresh visit starts at
+      // the logo-only state, then the first downward scroll drives the reveal.
+      if ("scrollRestoration" in window.history) {
+        window.history.scrollRestoration = "manual";
+      }
+
+      const resetIntro = () => {
+        window.scrollTo(0, 0);
+        render(0);
+      };
+
+      resetIntro();
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          resetIntro();
+          armed = true;
+        });
+      });
+    } else {
+      render(reduceMotion ? 1 : 0);
+      armed = true;
+      requestUpdate();
+    }
+
     window.addEventListener("scroll", requestUpdate, { passive: true });
     window.addEventListener("resize", () => {
       measure();
