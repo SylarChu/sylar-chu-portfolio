@@ -38,8 +38,8 @@
     if (!track || !stage || !frame || !media || !textHost) return;
 
     const startsAtTop = window.location.hash === "" || window.location.hash === "#top";
-    let finished = reduceMotion;
-    let armed = reduceMotion || !startsAtTop;
+    let finished = false;
+    let armed = !startsAtTop;
     let textAdded = false;
     let raf = 0;
 
@@ -72,7 +72,7 @@
     };
 
     const render = (rawProgress) => {
-      const progress = reduceMotion ? 1 : smoothstep(0, 1, rawProgress);
+      const progress = smoothstep(0, 1, rawProgress);
       const width = 15 + 85 * progress;
       const height = 22 + 78 * progress;
       const insetX = (100 - width) / 2;
@@ -84,7 +84,7 @@
       media.style.opacity = `${smoothstep(0.28, 0.6, rawProgress)}`;
       if (hint) hint.style.opacity = `${1 - smoothstep(0.16, 0.26, rawProgress)}`;
 
-      if (rawProgress >= 0.96 || reduceMotion) revealText();
+      if (rawProgress >= 0.96) revealText();
       if (rawProgress >= 0.999) finished = true;
     };
 
@@ -102,7 +102,7 @@
 
     measure();
 
-    if (!reduceMotion && startsAtTop) {
+    if (startsAtTop) {
       // Browsers commonly restore the previous scroll position after a reload.
       // Keep the published homepage deterministic: every fresh visit starts at
       // the logo-only state, then the first downward scroll drives the reveal.
@@ -115,15 +115,24 @@
         render(0);
       };
 
+      const armIntro = () => {
+        if (armed) return;
+        armed = true;
+        requestUpdate();
+      };
+
+      const armFromKey = (event) => {
+        if (["ArrowDown", "PageDown", "End", " "].includes(event.key)) armIntro();
+      };
+
       resetIntro();
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          resetIntro();
-          armed = true;
-        });
-      });
+      requestAnimationFrame(resetIntro);
+      window.addEventListener("pageshow", resetIntro, { once: true });
+      window.addEventListener("wheel", armIntro, { passive: true, once: true });
+      window.addEventListener("touchstart", armIntro, { passive: true, once: true });
+      window.addEventListener("keydown", armFromKey, { once: true });
     } else {
-      render(reduceMotion ? 1 : 0);
+      render(0);
       armed = true;
       requestUpdate();
     }
