@@ -1,6 +1,8 @@
 (() => {
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  document.documentElement.classList.add("js");
+
+  const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const finePointer = window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
   const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
   const smoothstep = (start, end, value) => {
@@ -38,7 +40,6 @@
     if (!track || !stage || !frame || !media || !textHost) return;
 
     const startsAtTop = window.location.hash === "" || window.location.hash === "#top";
-    let finished = false;
     let armed = !startsAtTop;
     let textAdded = false;
     let raf = 0;
@@ -66,7 +67,9 @@
     };
 
     const measure = () => {
-      const viewport = window.innerHeight;
+      const viewport = Math.round(
+        window.visualViewport ? window.visualViewport.height : window.innerHeight,
+      );
       stage.style.height = `${viewport}px`;
       track.style.height = `${viewport * 2.97}px`;
     };
@@ -79,18 +82,19 @@
       const insetY = (100 - height) / 2;
       const radius = 12 * (1 - progress);
 
-      frame.style.clipPath = `inset(${insetY}% ${insetX}% ${insetY}% ${insetX}% round ${radius}px)`;
+      const clip = `inset(${insetY}% ${insetX}% ${insetY}% ${insetX}% round ${radius}px)`;
+      frame.style.webkitClipPath = clip;
+      frame.style.clipPath = clip;
       media.style.transform = `translate3d(${7 - 31 * progress}%, ${15 - 4 * progress}%, 0) scale(${0.46 + 0.3 * progress})`;
       media.style.opacity = `${smoothstep(0.28, 0.6, rawProgress)}`;
       if (hint) hint.style.opacity = `${1 - smoothstep(0.16, 0.26, rawProgress)}`;
 
       if (rawProgress >= 0.96) revealText();
-      if (rawProgress >= 0.999) finished = true;
     };
 
     const update = () => {
       raf = 0;
-      if (finished || !armed) return;
+      if (!armed) return;
       const span = Math.max(1, window.innerHeight * 0.82);
       const progress = clamp(-track.getBoundingClientRect().top / span);
       render(progress);
@@ -101,6 +105,13 @@
     };
 
     measure();
+
+    if (reduceMotion) {
+      render(1);
+      revealText();
+      track.style.height = `${Math.round(window.innerHeight)}px`;
+      return;
+    }
 
     if (startsAtTop) {
       // Browsers commonly restore the previous scroll position after a reload.
@@ -142,6 +153,12 @@
       measure();
       requestUpdate();
     });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", () => {
+        measure();
+        requestUpdate();
+      });
+    }
   };
 
   const setupSectionReveals = () => {
@@ -162,6 +179,11 @@
       sections.forEach(reveal);
       return;
     }
+
+    sections.forEach((section) => {
+      section.style.opacity = "0.32";
+      section.style.transform = "translateY(82px) scale(0.972)";
+    });
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -184,7 +206,7 @@
       const caption = card.querySelector(".tilted-card__caption");
       if (!inner) return;
 
-      card.addEventListener("pointermove", (event) => {
+      const move = (event) => {
         const rect = card.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
@@ -196,15 +218,23 @@
           caption.style.opacity = "1";
           caption.style.transform = `translate3d(${x}px, ${y}px, 0)`;
         }
-      });
+      };
 
-      card.addEventListener("pointerleave", () => {
+      const leave = () => {
         inner.style.transform = "";
         if (caption) {
           caption.style.opacity = "0";
           caption.style.transform = "";
         }
-      });
+      };
+
+      if ("PointerEvent" in window) {
+        card.addEventListener("pointermove", move);
+        card.addEventListener("pointerleave", leave);
+      } else {
+        card.addEventListener("mousemove", move);
+        card.addEventListener("mouseleave", leave);
+      }
     });
   };
 

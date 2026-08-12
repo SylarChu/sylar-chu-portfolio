@@ -1,0 +1,43 @@
+/* Cross-browser fallbacks loaded after the generated styles. */
+.scroll-expand,
+.scroll-expand__stage {
+  min-height: 100vh;
+}
+
+@supports (height: 100svh) {
+  .scroll-expand,
+  .scroll-expand__stage {
+    min-height: 100svh;
+  }
+}
+
+.scroll-expand__frame {
+  -webkit-clip-path: inset(15% 17% round 18px);
+  clip-path: inset(15% 17% round 18px);
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+.scroll-expand__media,
+.home-canvas__art {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+@media (max-width: 760px) {
+  .scroll-expand__frame {
+    -webkit-clip-path: inset(8% 4% round 12px);
+    clip-path: inset(8% 4% round 12px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blur-text__segment,
+  .home-intro__logo--animated {
+    animation: none !important;
+    filter: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
