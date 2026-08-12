@@ -1,8 +1,10 @@
 (() => {
   document.documentElement.classList.add("js");
 
-  const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const finePointer = window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  // This portfolio deliberately uses motion as part of its presentation.
+  // Do not infer a global motion opt-out here: some browsers expose the OS
+  // preference by default, which previously disabled every interaction.
+  const reduceMotion = false;
 
   const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
   const smoothstep = (start, end, value) => {
@@ -40,7 +42,6 @@
     if (!track || !stage || !frame || !media || !textHost) return;
 
     const startsAtTop = window.location.hash === "" || window.location.hash === "#top";
-    let armed = !startsAtTop;
     let textAdded = false;
     let raf = 0;
 
@@ -94,7 +95,6 @@
 
     const update = () => {
       raf = 0;
-      if (!armed) return;
       const span = Math.max(1, window.innerHeight * 0.82);
       const progress = clamp(-track.getBoundingClientRect().top / span);
       render(progress);
@@ -105,13 +105,6 @@
     };
 
     measure();
-
-    if (reduceMotion) {
-      render(1);
-      revealText();
-      track.style.height = `${Math.round(window.innerHeight)}px`;
-      return;
-    }
 
     if (startsAtTop) {
       // Browsers commonly restore the previous scroll position after a reload.
@@ -126,25 +119,16 @@
         render(0);
       };
 
-      const armIntro = () => {
-        if (armed) return;
-        armed = true;
-        requestUpdate();
-      };
-
-      const armFromKey = (event) => {
-        if (["ArrowDown", "PageDown", "End", " "].includes(event.key)) armIntro();
-      };
-
       resetIntro();
       requestAnimationFrame(resetIntro);
-      window.addEventListener("pageshow", resetIntro, { once: true });
-      window.addEventListener("wheel", armIntro, { passive: true, once: true });
-      window.addEventListener("touchstart", armIntro, { passive: true, once: true });
-      window.addEventListener("keydown", armFromKey, { once: true });
+      window.addEventListener("pageshow", (event) => {
+        // A normal reload starts from the designed opening state. When a page
+        // returns from the back-forward cache, preserve its restored position.
+        if (!event.persisted) resetIntro();
+        requestUpdate();
+      }, { once: true });
     } else {
       render(0);
-      armed = true;
       requestUpdate();
     }
 
@@ -199,8 +183,6 @@
   };
 
   const setupTiltedCards = () => {
-    if (!finePointer || reduceMotion) return;
-
     document.querySelectorAll(".tilted-card").forEach((card) => {
       const inner = card.querySelector(".tilted-card__inner");
       const caption = card.querySelector(".tilted-card__caption");
